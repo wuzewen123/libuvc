@@ -131,8 +131,8 @@ int main(int argc, char **argv) {
       const uvc_format_desc_t *format_desc = uvc_get_format_descs(devh);
       const uvc_frame_desc_t *frame_desc = format_desc->frame_descs;
       enum uvc_frame_format frame_format;
-      int width = 640;
-      int height = 480;
+      int width = 240;
+      int height = 360;
       int fps = 30;
 
       switch (format_desc->bDescriptorSubtype) {
@@ -162,10 +162,7 @@ int main(int argc, char **argv) {
           width, height, fps /* width, height, fps */
       );
 
-      /* Print out the result */
-      uvc_print_stream_ctrl(&ctrl, stderr);
-
-      if (res < 0) {
+      if (res > 0) {
         uvc_perror(res, "get_mode"); /* device doesn't provide a matching stream */
       } else {
         /* Start the video stream. The library will call user function cb:

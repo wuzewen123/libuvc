@@ -36,8 +36,42 @@
 
 #include "libuvc/libuvc.h"
 
+#define MAX_FRAME_WITDH 240
+#define MAX_FRAME_HEIGHT 180
+#define UVC_PT_CAMERA_CTRL 0x01
+#define UVC_PT_CALIBRATE_CTRL 0x02
+#define UVC_PT_DEPTHEYE_CTRL 0x03
+#define UVC_VC_DEPTHEYE_UNIT_ID 13  // Pointcloud.ai ctrl
+#define UVC_VC_POINTCLOUD_UNIT_ID 8 // Pointcloud.ai
+#define UVC_VC_IMX556REG_UNIT_ID 9  // Pointcloud.ai
+#define SYSTEM_FREQ_CLOCK 120
+#define UVC_CTRL_BUFF_LENGTH 32 // 60
+#define DEPTHEYE_BASE_ID 0x100
+#define DEPTHEYE_FRAME_RATE_ID DEPTHEYE_BASE_ID + 3
+#define DEPTHEYE_INTERGRAL_TIME DEPTHEYE_BASE_ID + 13
+#define DEPTHEYE_FIRMWARE_VERSION DEPTHEYE_BASE_ID + 17
+#define DEPTHEYE_GET_TSENSOR DEPTHEYE_BASE_ID + 22
+#define DEPTHEYE_GET_TILLUM DEPTHEYE_BASE_ID + 23
+#define DEPTHEYE_AE_ENABLE DEPTHEYE_BASE_ID + 24
+#define DEPTHEYE_FILTER_ENABLE DEPTHEYE_BASE_ID + 25
+
 void cb(uvc_frame_t *frame, void *ptr) {
   printf("callback! length = %u, ptr = %d\n", frame->data_bytes, (int) ptr);
+}
+bool setDeptheyeCMD(uvc_device_handle_t *devh, uint16_t address, uint8_t value, uint8_t length)
+{
+    uint8_t ctl_cmd = UVC_PT_DEPTHEYE_CTRL;
+    uint8_t unit = UVC_VC_POINTCLOUD_UNIT_ID;
+
+    int resSetMode = 0;
+
+    uint8_t data[6];
+    memcpy(data, &address, 2);
+    memcpy(data + 2, &value, 1);
+    resSetMode = uvc_set_ctrl(devh, unit, ctl_cmd, data, length + 2);
+    if (resSetMode != length + 2)
+        return false;
+    return true;
 }
 
 int main(int argc, char **argv) {
@@ -72,14 +106,43 @@ int main(int argc, char **argv) {
     } else {
       puts("Device opened");
 
-      uvc_print_diag(devh, stderr);
+      // uvc_print_diag(devh, stderr);
 
       res = uvc_get_stream_ctrl_format_size(
-          devh, &ctrl, UVC_FRAME_FORMAT_YUYV, 640, 480, 30
+          devh, &ctrl, UVC_FRAME_FORMAT_YUYV, 240, 360, 30
       );
       res = uvc_start_streaming(devh, &ctrl, cb, 12345, 0);
+      
+      if(setDeptheyeCMD(devh,DEPTHEYE_INTERGRAL_TIME,100,1)){
+          printf("set intergratime sucess~~~~~~~~~\n");
+      } else {
+          printf("set intergratime fail~~~~~~~~~\n");
+      }
 
-      sleep(10);
+      if(!setDeptheyeCMD(devh,DEPTHEYE_FRAME_RATE_ID,15,1))
+      {
+          printf("setFps fail~~~~~~~~~~~~\n");
+      } else {
+          printf("setFps sucess~~~~~~~~~~~~\n");
+      } // 
+          
+
+      if(!setDeptheyeCMD(devh,DEPTHEYE_AE_ENABLE,1,1))
+      {
+          printf("setAE value fail~~~~~~~~~\n");
+      } else {
+          printf("setAE value sucess~~~~~~~~~~~~\n");
+      } //  // set fan
+      
+      if(!setDeptheyeCMD(devh,DEPTHEYE_FILTER_ENABLE,1,1))
+      {
+          printf("set filter value fail~~~~~~~~~~~~~~~~~\n");
+      } else {
+          printf("set filter value sucess~~~~~~~~~~~~\n");
+      } //  // 
+
+
+      sleep(10000);
       uvc_stop_streaming(devh);
       puts("Done streaming.");
 
